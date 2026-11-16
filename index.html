@@ -180,13 +180,69 @@ function jsonp(url){
   });
 }
 
+// Google Books → 見つからない/失敗なら 国立国会図書館サーチ の順に試す
 async function searchBooks(q){
+  const errs = [];
+  let googleOk = false, hits = [];
+  try { hits = await searchGoogle(q); googleOk = true; if (hits.length) return hits; }
+  catch (e) { errs.push('Google Books: ' + (e.message || e)); }
+  try { return await searchNdl(q); }
+  catch (e) { errs.push('国立国会図書館: ' + (e.message || e)); }
+  if (googleOk) return hits;
+  const err = new Error(errs.join(' / '));
+  err.detail = errs.join(' / ');
+  throw err;
+}
+
+function toIsbn13(v){
+  v = String(v).replace(/[^0-9Xx]/g, '');
+  if (/^\d{13}$/.test(v)) return v;
+  if (/^\d{9}[\dXx]$/.test(v)) {
+    const b = '978' + v.slice(0, 9);
+    let s = 0;
+    for (let i = 0; i < 12; i++) s += (+b[i]) * (i % 2 ? 3 : 1);
+    return b + ((10 - s % 10) % 10);
+  }
+  return null;
+}
+
+async function searchNdl(q){
+  const digits = q.replace(/-/g, '');
+  const p = new URLSearchParams({ cnt:'50' });
+  if (/^\d{10}(\d{3})?$/.test(digits)) p.set('isbn', digits); else p.set('any', q);
+  const r = await fetch('https://ndlsearch.ndl.go.jp/api/opensearch?' + p);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const doc = new DOMParser().parseFromString(await r.text(), 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) throw new Error('形式エラー');
+  const seen = new Set(), out = [];
+  for (const it of doc.getElementsByTagName('item')) {
+    let isbn = null;
+    for (const el of it.getElementsByTagNameNS('*', 'identifier')) {
+      const typed = [...el.attributes].some(a => /ISBN/i.test(a.value));
+      const v = el.textContent.trim();
+      if (typed || /^[\d-]{10,17}[Xx]?$/.test(v)) { isbn = toIsbn13(v); if (isbn) break; }
+    }
+    const t = it.getElementsByTagName('title')[0];
+    if (!isbn || !t || seen.has(isbn)) continue;   // 所蔵確認にはISBNが必要
+    seen.add(isbn);
+    let authors = [...it.getElementsByTagNameNS('*', 'creator')].map(x => x.textContent.trim()).filter(Boolean);
+    if (!authors.length) {
+      const a = it.getElementsByTagName('author')[0];
+      if (a && a.textContent.trim()) authors = [a.textContent.trim()];
+    }
+    out.push({ isbn, title:t.textContent.trim(), authors,
+      cover:'https://ndlsearch.ndl.go.jp/thumbnail/' + isbn + '.jpg' });
+  }
+  return out;
+}
+
+async function searchGoogle(q){
   const digits = q.replace(/-/g, '');
   const query = /^\d{10}(\d{3})?$/.test(digits) ? 'isbn:' + digits : q;
   const u = new URL('https://www.googleapis.com/books/v1/volumes');
   u.search = new URLSearchParams({ q:query, langRestrict:'ja', printType:'books', maxResults:'30' });
   const r = await fetch(u);
-  if (!r.ok) throw new Error('http ' + r.status);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
   const j = await r.json();
   const seen = new Set(), out = [];
   for (const it of j.items || []) {
@@ -345,7 +401,9 @@ async function runSearch(q){
     checkIsbns(hits.map(h => h.isbn), () => { if (tok === searchToken) updateResults(); }, false, () => tok !== searchToken);
   } catch (e) {
     if (tok !== searchToken) return;
-    ui.searching = false; ui.err = '検索に失敗しました。通信状況を確認してください。'; updateResults();
+    ui.searching = false;
+    ui.err = '検索に失敗しました。通信状況を確認してください。' + (e && e.detail ? '(' + e.detail + ')' : '');
+    updateResults();
   }
 }
 
