@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="読みたい本">
+<meta name="theme-color" content="#254a7c">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAAB1klEQVR42u3YvQmAMBCA0SzjKhbO5GJu4ADOIG6hrYVgQn4I+uTrPcIrjgvDNEuPBU8gOASH4BAcgkNwCA7BITgEhwSH4BAcgkNwCA7BITgEh+CQ4BAcgkNwCA7BITgEh+AQHBIcgkNwCA7BITgEh+AQHIrsWMbX4IADDsEhOASH4IADDjjggAMOOOCAAw444IDj3tn9V2/aGBw508IBBxxwwAEHHHDAAQcccMABBxxwwAEHHHDAAQcccMABBxxwwAEHHHCUx7Fue4NK4Uj9bwyOnGnhgAMOOOCAAw4LqYUUDjjggAMOOOBohaP2tHDAAQcccMABBxxwwAGH83mf08IBBxxwwAEHHBZSCykccMABBxxwwAEHHHDAAQcccMABBxxwwOF87nwOBxxwwAEHHBZSCykccMABBxxwwAEHHHDAAQcccMABBxxwwOF87nwOBxxwwAEHHBZSCykccMABBxxwwAEHHHDAAQcccMABBxxwwAEHHHDAAQcccMABh74WHIJDcAgOwSE4BIfgEByCQ3BIcAgOwSE4BIfgEByCQ3AIDgkOwSE4BIfgEByCQ3AIDsEhwSE4BIfgEByCQ3AIDsEhOASHBIfgEByCQ3AIDsEhOASHftgFBir7HnqECoQAAAAASUVORK5CYII=">
+<title>読みたい本リスト</title>
+<style>
+/* 配色: インク青を軸に、貸出状態だけ信号色で区別する */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --fg:#161a20; --muted:#667085; --line:#e3e6eb;
+  --accent:#254a7c; --accent-fg:#ffffff; --accent-soft:#e6edf7;
+  --ok:#157a46; --ok-bg:#e3f4ea; --warn:#a15c07; --warn-bg:#fdf0d9;
+  --bad:#b42318; --bad-bg:#fde8e6; --info:#1d5fa8; --info-bg:#e3eefb;
+  --mute:#667085; --mute-bg:#eceef2;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0f1318; --surface:#181d24; --fg:#eceff4; --muted:#98a2b3; --line:#2a313b;
+    --accent:#8db4ee; --accent-fg:#0f1318; --accent-soft:#1c2a3d;
+    --ok:#5fd08e; --ok-bg:#15301f; --warn:#f0b45c; --warn-bg:#35280f;
+    --bad:#ff8a80; --bad-bg:#3a1b19; --info:#8ab8f2; --info-bg:#172a42;
+    --mute:#98a2b3; --mute-bg:#232a33;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;-webkit-text-size-adjust:100%}
+[hidden]{display:none!important}
+#app{display:flex;flex-direction:column;height:100dvh;max-width:640px;margin:0 auto}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 6px}
+.top h1{font-size:22px;margin:0;letter-spacing:.02em}
+main{flex:1;min-height:0;overflow-y:auto;padding:0 16px 24px;-webkit-overflow-scrolling:touch}
+.tabs{display:flex;border-top:1px solid var(--line);background:var(--surface);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{flex:1;border:0;background:none;color:var(--muted);padding:8px 0 6px;font:inherit;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabs button.on{color:var(--accent)}
+.tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+h2{font-size:14px;margin:0 0 8px;color:var(--muted);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 12px}
+.row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.grow{flex:1;min-width:0}
+.small{font-size:12px}
+.muted{color:var(--muted)}
+.hint{color:var(--muted);font-size:13px;margin:6px 0 10px}
+.title{font-weight:600;overflow-wrap:anywhere}
+.book{display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--line);align-items:flex-start;width:100%;background:none;border-left:0;border-right:0;border-bottom:0;color:inherit;font:inherit;text-align:left}
+.list .book:first-child{border-top:0}
+.cover{width:48px;height:68px;border-radius:4px;object-fit:cover;background:var(--mute-bg);flex:none}
+.ph{display:block}
+.badge{display:inline-flex;gap:4px;align-items:center;font-size:12px;padding:2px 9px;border-radius:99px;margin-top:4px}
+.badge.ok,.sym.ok{color:var(--ok);background:var(--ok-bg)}
+.badge.warn,.sym.warn{color:var(--warn);background:var(--warn-bg)}
+.badge.bad,.sym.bad{color:var(--bad);background:var(--bad-bg)}
+.badge.info,.sym.info{color:var(--info);background:var(--info-bg)}
+.badge.mute,.sym.mute{color:var(--mute);background:var(--mute-bg)}
+.t-ok{color:var(--ok)}.t-warn{color:var(--warn)}.t-bad{color:var(--bad)}.t-info{color:var(--info)}.t-mute{color:var(--mute)}
+.sym{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.meta{font-size:12px;color:var(--muted)}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:10px;padding:9px 14px;font:inherit;font-size:14px;text-decoration:none;display:inline-block;text-align:center}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.ghost{background:none}
+.btn.wide{width:100%}
+.btn.small{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.5}
+.link{border:0;background:none;color:var(--accent);font:inherit;text-decoration:underline;padding:0}
+input,select,textarea{font:inherit;font-size:16px;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+textarea{resize:vertical;min-height:80px}
+.searchbar{position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:2}
+.toggle{display:flex;gap:8px;align-items:center;font-size:14px;margin:4px 0 8px}
+.toggle input{width:auto}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;flex-wrap:nowrap}
+.chips.wrap{flex-wrap:wrap}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:99px;padding:5px 12px;font:inherit;font-size:13px}
+.chip.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.note{border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:13px}
+.note.warn{background:var(--warn-bg);color:var(--warn)}
+.note.warn .link{color:inherit}
+.empty{text-align:center;color:var(--muted);padding:48px 16px}
+.pair{display:flex;gap:8px}
+#sheet{position:fixed;inset:0;background:var(--bg);z-index:20;overflow-y:auto;max-width:640px;margin:0 auto;padding:0 16px calc(env(safe-area-inset-bottom,0px) + 32px)}
+.sheethead{position:sticky;top:0;background:var(--bg);padding:calc(env(safe-area-inset-top,0px) + 10px) 0 8px;z-index:3;display:flex;justify-content:space-between}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 76px);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:99px;font-size:13px;z-index:30;max-width:90%;text-align:center}
+.spin{color:var(--muted);text-align:center;padding:24px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top"><h1 id="ttl">読みたい本</h1><div id="topAct"></div></header>
+  <main id="main"></main>
+  <nav class="tabs" id="tabs">
+    <button data-act="tab" data-tab="shelf"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg>読みたい本</button>
+    <button data-act="tab" data-tab="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>検索</button>
+    <button data-act="tab" data-tab="libs"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V10l7-5 7 5v11M9 21v-6h6v6"/></svg>図書館</button>
+    <button data-act="tab" data-tab="set"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>設定</button>
+  </nav>
+</div>
+<div id="sheet" hidden></div>
+<div id="toast" hidden></div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+const KEY = 'yomitai.v1';
+const GENRES = ['小説','ビジネス','技術','漫画','エッセイ','実用','その他'];
+const PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+
+// 蔵書の状態(rが小さいほど借りやすい)
+const ST = {
+  available:{r:0,sym:'○',label:'貸出可',cls:'ok'},
+  lending:{r:1,sym:'△',label:'貸出中',cls:'warn'},
+  inlib:{r:2,sym:'△',label:'蔵書あり',cls:'warn'},
+  ref:{r:3,sym:'◇',label:'館内のみ',cls:'info'},
+  closed:{r:4,sym:'−',label:'休館・準備中',cls:'mute'},
+  none:{r:5,sym:'×',label:'蔵書なし',cls:'bad'},
+  unknown:{r:6,sym:'?',label:'確認できず',cls:'mute'}
+};
+function stateOf(t){
+  if (t == null) return 'none';
+  if (t === '貸出可') return 'available';
+  if (t === '貸出中') return 'lending';
+  if (t === '蔵書あり') return 'inlib';
+  if (t === '館内のみ') return 'ref';
+  if (['準備中','休館中','予約中'].includes(t)) return 'closed';
+  return 'unknown';
+}
+function summarize(list){
+  const ks = list.map(x => x.state);
+  const known = ks.filter(s => ST[s].r <= 4).sort((a,b) => ST[a].r - ST[b].r);
+  if (known.length) return known[0];
+  return ks.includes('unknown') ? 'unknown' : 'none';
+}
+
+/* ---------- 保存データ ---------- */
+function loadDb(){
+  try {
+    const r = JSON.parse(localStorage.getItem(KEY));
+    if (r && typeof r === 'object') return { books:[], libraries:[], appKey:'', ...r };
+  } catch (e) {}
+  return { books:[], libraries:[], appKey:'' };
+}
+let db = loadDb();
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(db)); }
+  catch (e) { toast('保存できませんでした'); }
+}
+
+let avail = {};            // isbn -> [{lib,state,url}]
+const loading = new Set(); // 確認中のisbn
+const ui = { tab:'shelf', filter:null, q:'', hits:[], searching:false, err:'', onlyHeld:false,
+             found:[], busy:false, sheet:null, pref:'栃木県', city:'' };
+
+let toastT;
+function toast(m){
+  const t = $('#toast'); t.textContent = m; t.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 2800);
+}
+
+/* ---------- 外部API ---------- */
+function jsonp(url){
+  return new Promise((resolve, reject) => {
+    const cb = 'cb_' + Math.random().toString(36).slice(2);
+    const s = document.createElement('script');
+    const done = () => { clearTimeout(t); delete window[cb]; s.remove(); };
+    const t = setTimeout(() => { done(); reject(new Error('timeout')); }, 20000);
+    window[cb] = d => { done(); resolve(d); };
+    s.onerror = () => { done(); reject(new Error('load')); };
+    s.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb;
+    document.head.appendChild(s);
+  });
+}
+
+async function searchBooks(q){
+  const digits = q.replace(/-/g, '');
+  const query = /^\d{10}(\d{3})?$/.test(digits) ? 'isbn:' + digits : q;
+  const u = new URL('https://www.googleapis.com/books/v1/volumes');
+  u.search = new URLSearchParams({ q:query, langRestrict:'ja', printType:'books', maxResults:'30' });
+  const r = await fetch(u);
+  if (!r.ok) throw new Error('http ' + r.status);
+  const j = await r.json();
+  const seen = new Set(), out = [];
+  for (const it of j.items || []) {
+    const v = it.volumeInfo || {};
+    const id = (v.industryIdentifiers || []).find(x => x.type === 'ISBN_13');
+    if (!id || !v.title || seen.has(id.identifier)) continue;  // 所蔵確認にはISBNが必要
+    seen.add(id.identifier);
+    out.push({
+      isbn:id.identifier,
+      title:v.title + (v.subtitle ? ' ' + v.subtitle : ''),
+      authors:v.authors || [],
+      cover:((v.imageLinks && v.imageLinks.thumbnail) || '').replace('http://', 'https://')
+    });
+  }
+  return out;
+}
+
+async function calilLibraries(params){
+  const p = new URLSearchParams({ appkey:db.appKey, format:'json', ...params });
+  const r = await jsonp('https://api.calil.jp/library?' + p);
+  return (Array.isArray(r) ? r : []).map(x => ({
+    systemid:x.systemid, libkey:x.libkey, name:x.formal || x.short || x.systemname,
+    address:x.address || '', url:x.url_pc || ''
+  }));
+}
+
+async function calilCheck(isbns, libs){
+  const systems = [...new Set(libs.map(l => l.systemid))];
+  let session = null, last = null;
+  for (let i = 0; i < 30; i++) {
+    const p = new URLSearchParams({ appkey:db.appKey, format:'json' });
+    if (session) p.set('session', session);
+    else { p.set('isbn', isbns.join(',')); p.set('systemid', systems.join(',')); }
+    last = await jsonp('https://api.calil.jp/check?' + p);
+    session = last.session;
+    if (!last['continue']) break;
+    await sleep(2000);
+  }
+  const out = {};
+  for (const isbn of isbns) {
+    out[isbn] = libs.map(l => {
+      const s = last && last.books && last.books[isbn] && last.books[isbn][l.systemid];
+      let state = 'unknown';
+      if (s && s.status !== 'Running' && s.status !== 'Error') {
+        state = stateOf(s.libkey ? s.libkey[l.libkey] : null);
+      }
+      const direct = !!(s && s.reserveurl);
+      return { lib:l, state, direct, url:(direct ? s.reserveurl : l.url) || '' };
+    });
+  }
+  return out;
+}
+
+async function checkIsbns(isbns, onUpdate, force, stop){
+  if (!db.appKey || !db.libraries.length) return;
+  const todo = isbns.filter(i => !loading.has(i) && (force || !avail[i]));
+  if (!todo.length) return;
+  todo.forEach(i => loading.add(i));
+  onUpdate();
+  for (let i = 0; i < todo.length; i += 10) {
+    const chunk = todo.slice(i, i + 10);
+    if (stop && stop()) { chunk.forEach(x => loading.delete(x)); continue; }
+    try { Object.assign(avail, await calilCheck(chunk, db.libraries)); }
+    catch (e) { toast('蔵書の確認に失敗しました。APIキーと通信状況を確認してください'); }
+    chunk.forEach(x => loading.delete(x));
+    onUpdate();
+  }
+}
+
+/* ---------- 部品 ---------- */
+function coverHtml(url){
+  if (!url) return '<div class="cover ph"></div>';
+  return `<img class="cover" src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.className='cover ph';this.removeAttribute('src')">`;
+}
+function badge(isbn){
+  if (!db.libraries.length || !db.appKey) return '';
+  const list = avail[isbn];
+  if (!list) return loading.has(isbn) ? '<span class="badge mute">所蔵を確認中…</span>' : '';
+  const s = ST[summarize(list)];
+  const n = list.filter(x => x.state === 'available').length;
+  return `<span class="badge ${s.cls}"><b>${s.sym}</b> ${n > 0 ? '貸出可 ' + n + '館' : s.label}</span>`;
+}
+
+/* ---------- 画面: 読みたい本 ---------- */
+function viewShelf(){
+  const all = [...new Set(db.books.flatMap(b => [...b.tags, ...(b.genre ? [b.genre] : [])]))].sort();
+  let books = [...db.books].sort((a, b) => b.addedAt - a.addedAt);
+  if (ui.filter === '__unread') books = books.filter(b => !b.read);
+  else if (ui.filter) books = books.filter(b => b.tags.includes(ui.filter) || b.genre === ui.filter);
+  const chips = db.books.length ? `<div class="chips">
+      <button class="chip ${!ui.filter ? 'on' : ''}" data-act="filter" data-f="">すべて</button>
+      <button class="chip ${ui.filter === '__unread' ? 'on' : ''}" data-act="filter" data-f="__unread">未読</button>
+      ${all.map(f => `<button class="chip ${ui.filter === f ? 'on' : ''}" data-act="filter" data-f="${esc(f)}">${esc(f)}</button>`).join('')}
+    </div>` : '';
+  const hint = (db.books.length && (!db.libraries.length || !db.appKey))
+    ? '<div class="note warn">所蔵を表示するには、「設定」でAPIキーを入れ、「図書館」で図書館を登録してください。</div>' : '';
+  if (!db.books.length) {
+    return `<div class="empty">読みたい本がまだありません。<br>「検索」から追加しましょう。</div>`;
+  }
+  return hint + chips + `<div class="list card" style="padding:4px 14px">` + (books.length ? books.map(b => `
+    <button class="book" data-act="open-book" data-isbn="${esc(b.isbn)}" style="${b.read ? 'opacity:.6' : ''}">
+      ${coverHtml(b.cover)}
+      <div class="grow">
+        <div class="title">${esc(b.title)}</div>
+        <div class="meta">${esc(b.authors.join(', '))}</div>
+        ${badge(b.isbn)}
+        ${(b.tags.length || b.genre || b.read) ? `<div class="meta" style="margin-top:4px">${[b.read ? '読了' : '', b.genre, ...b.tags.map(t => '#' + t)].filter(Boolean).map(esc).join(' ・ ')}</div>` : ''}
+      </div>
+    </button>`).join('') : '<div class="empty">該当する本がありません</div>') + `</div>`;
+}
+
+/* ---------- 画面: 検索 ---------- */
+function viewSearch(){
+  return `<div class="searchbar"><input id="q" type="search" inputmode="search" autocomplete="off" data-in="q"
+      placeholder="タイトル・著者名・ISBN(途中まででOK)" value="${esc(ui.q)}"></div>
+    ${db.libraries.length && db.appKey
+      ? `<label class="toggle"><input type="checkbox" data-in="onlyHeld" ${ui.onlyHeld ? 'checked' : ''}> 登録した図書館に所蔵がある本だけ表示</label>`
+      : `<p class="hint">「図書館」タブで図書館を登録すると、所蔵も表示されます。</p>`}
+    <div id="results">${resultsHtml()}</div>`;
+}
+function visibleHits(){
+  if (!ui.onlyHeld || !db.libraries.length) return ui.hits;
+  return ui.hits.filter(h => { const l = avail[h.isbn]; return !(l && l.every(x => x.state === 'none')); });
+}
+function resultsHtml(){
+  if (ui.err) return `<div class="note warn">${esc(ui.err)}</div>`;
+  if (ui.searching && !ui.hits.length) return '<div class="spin">検索中…</div>';
+  if (!ui.q.trim()) return '<div class="empty">本のタイトルや著者名を入力してください。</div>';
+  const hits = visibleHits();
+  if (!hits.length) return `<div class="empty">${ui.hits.length ? '所蔵のある本が見つかりませんでした' : '見つかりませんでした。別の言葉で試してください。'}</div>`;
+  return `<div class="list card" style="padding:4px 14px">` + hits.map(h => {
+    const added = db.books.some(b => b.isbn === h.isbn);
+    return `<div class="book">
+      ${coverHtml(h.cover)}
+      <div class="grow"><div class="title">${esc(h.title)}</div><div class="meta">${esc(h.authors.join(', '))}</div>${badge(h.isbn)}</div>
+      ${added ? '<span class="t-ok small" style="flex:none">追加済み</span>'
+              : `<button class="btn small primary" data-act="add-book" data-isbn="${esc(h.isbn)}" style="flex:none">＋ 追加</button>`}
+    </div>`;
+  }).join('') + `</div>`;
+}
+function updateResults(){ const r = $('#results'); if (ui.tab === 'search' && r) r.innerHTML = resultsHtml(); }
+
+let searchTimer, searchToken = 0;
+function onSearchInput(v){
+  ui.q = v; clearTimeout(searchTimer);
+  if (!v.trim()) { searchToken++; ui.hits = []; ui.err = ''; ui.searching = false; updateResults(); return; }
+  searchTimer = setTimeout(() => runSearch(v.trim()), 450);
+}
+async function runSearch(q){
+  const tok = ++searchToken;
+  ui.searching = true; ui.err = ''; updateResults();
+  try {
+    const hits = await searchBooks(q);
+    if (tok !== searchToken) return;
+    ui.hits = hits; ui.searching = false; updateResults();
+    checkIsbns(hits.map(h => h.isbn), () => { if (tok === searchToken) updateResults(); }, false, () => tok !== searchToken);
+  } catch (e) {
+    if (tok !== searchToken) return;
+    ui.searching = false; ui.err = '検索に失敗しました。通信状況を確認してください。'; updateResults();
+  }
+}
+
+/* ---------- 画面: 図書館 ---------- */
+function viewLibs(){
+  const keyWarn = !db.appKey
+    ? `<div class="note warn">蔵書の確認にはカーリルのAPIキーが必要です。<button class="link" data-act="tab" data-tab="set">設定で入力する</button></div>` : '';
+  const saved = db.libraries.length ? db.libraries.map((l, i) => `
+    <div class="row"><div class="grow"><div>${esc(l.name)}</div><div class="small muted">${esc(l.address)}</div></div>
+    <button class="btn ghost small" data-act="lib-del" data-i="${i}">削除</button></div>`).join('')
+    : '<p class="muted" style="margin:0">まだ登録がありません。</p>';
+  const found = ui.found.length ? `<section class="card"><h2>見つかった図書館</h2>` + ui.found.map((l, i) => {
+    const has = db.libraries.some(x => x.systemid === l.systemid && x.libkey === l.libkey);
+    return `<div class="row"><div class="grow"><div>${esc(l.name)}</div><div class="small muted">${esc(l.address)}</div></div>
+      ${has ? '<span class="t-ok small">登録済み</span>' : `<button class="btn small primary" data-act="lib-add" data-i="${i}">登録</button>`}</div>`;
+  }).join('') + `</section>` : '';
+  return `${keyWarn}
+    <section class="card"><h2>登録した図書館</h2>${saved}</section>
+    <section class="card"><h2>宇都宮市・鹿沼市</h2>
+      <button class="btn primary wide" data-act="lib-preset" ${ui.busy ? 'disabled' : ''}>${ui.busy ? '取得中…' : '宇都宮市と鹿沼市の図書館をまとめて登録'}</button>
+    </section>
+    <section class="card"><h2>ほかの地域・現在地から探す</h2>
+      <div class="pair" style="margin-bottom:8px">
+        <select id="pref" data-in="pref" style="flex:1">${PREFS.map(p => `<option ${p === ui.pref ? 'selected' : ''}>${p}</option>`).join('')}</select>
+        <input id="city" data-in="city" placeholder="市区町村(例: 小山市)" value="${esc(ui.city)}" style="flex:1.2">
+      </div>
+      <div class="pair"><button class="btn" style="flex:1" data-act="lib-city" ${ui.busy ? 'disabled' : ''}>地域で探す</button>
+      <button class="btn" style="flex:1" data-act="lib-near" ${ui.busy ? 'disabled' : ''}>現在地から探す</button></div>
+    </section>${found}`;
+}
+function needKey(){
+  if (db.appKey) return true;
+  toast('先に「設定」でカーリルのAPIキーを入力してください');
+  return false;
+}
+function addLibs(libs){
+  let n = 0;
+  for (const l of libs) {
+    if (db.libraries.some(x => x.systemid === l.systemid && x.libkey === l.libkey)) continue;
+    db.libraries.push(l); n++;
+  }
+  if (n) { save(); avail = {}; }
+  return n;
+}
+async function findLibs(fn, autoAdd){
+  if (!needKey()) return;
+  ui.busy = true; renderTab(true);
+  try {
+    const libs = await fn();
+    ui.found = libs;
+    if (!libs.length) toast('図書館が見つかりませんでした');
+    else if (autoAdd) { const n = addLibs(libs); toast(n ? n + '館を登録しました' : 'すべて登録済みです'); }
+  } catch (e) { toast('図書館を取得できませんでした。APIキーを確認してください'); }
+  ui.busy = false; renderTab(true);
+}
+
+/* ---------- 画面: 設定 ---------- */
+function viewSet(){
+  return `<section class="card"><h2>カーリルAPIキー</h2>
+      <input data-in="key" placeholder="アプリケーションキーを貼り付け" value="${esc(db.appKey)}" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <p class="hint">蔵書の確認に使います。<a href="https://calil.jp/doc/api.html" target="_blank" rel="noopener" style="color:var(--accent)">カーリルのAPIページ</a>で申請(無料)してください。キーはこの端末の中だけに保存されます。</p>
+    </section>
+    <section class="card"><h2>バックアップ・機種変更</h2>
+      <p class="hint" style="margin-top:0">本・タグ・図書館・APIキーをファイルに書き出せます。新しい端末で「読み込む」と引き継げます。</p>
+      <div class="pair" style="margin-bottom:10px">
+        <button class="btn primary" style="flex:1" data-act="export-share">書き出す(ファイルへ保存)</button>
+        <button class="btn" style="flex:1" data-act="export-copy">コピー</button>
+      </div>
+      <label class="btn wide" style="margin-bottom:10px">ファイルから読み込む<input type="file" accept=".json,application/json" data-in="importFile" hidden></label>
+      <textarea id="backupText" placeholder="コピーしたバックアップをここに貼り付けて読み込めます"></textarea>
+      <button class="btn wide" style="margin-top:8px" data-act="import-text">貼り付けた内容を読み込む</button>
+    </section>
+    <section class="card"><h2>このアプリについて</h2>
+      <p class="hint" style="margin:0">本の情報は Google Books、蔵書の情報はカーリル図書館APIを使っています。データはこの端末のブラウザに保存されます。ホーム画面に追加したアプリと、Safariで開いたページは保存場所が別なので、ホーム画面のアプリで設定してください。定期的にバックアップを書き出すと安心です。</p>
+    </section>`;
+}
+function exportJSON(){
+  return JSON.stringify({ app:'yomitai', version:1, exportedAt:new Date().toISOString(),
+    appKey:db.appKey, books:db.books, libraries:db.libraries }, null, 1);
+}
+async function shareBackup(){
+  const text = exportJSON();
+  try {
+    const file = new File([text], 'yomitai-backup.json', { type:'application/json' });
+    if (navigator.canShare && navigator.canShare({ files:[file] })) {
+      await navigator.share({ files:[file], title:'読みたい本 バックアップ' });
+      return;
+    }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  copyBackup();
+}
+async function copyBackup(){
+  const text = exportJSON();
+  try { await navigator.clipboard.writeText(text); toast('コピーしました'); }
+  catch (e) { const t = $('#backupText'); t.value = text; t.select(); toast('表示された文字をコピーしてください'); }
+}
+function importData(text){
+  try {
+    const d = JSON.parse(text);
+    let nb = 0;
+    for (const b of Array.isArray(d.books) ? d.books : []) {
+      if (!b || !b.isbn || !b.title || db.books.some(x => x.isbn === b.isbn)) continue;
+      db.books.push({ isbn:String(b.isbn), title:String(b.title), authors:Array.isArray(b.authors) ? b.authors : [],
+        cover:b.cover || '', genre:b.genre || '', tags:Array.isArray(b.tags) ? b.tags : [], note:b.note || '',
+        read:!!b.read, addedAt:b.addedAt || Date.now() });
+      nb++;
+    }
+    const nl = addLibs(Array.isArray(d.libraries) ? d.libraries.filter(l => l && l.systemid && l.libkey) : []);
+    if (!db.appKey && d.appKey) db.appKey = String(d.appKey);
+    save(); avail = {};
+    toast(`読み込みました(本${nb}冊・図書館${nl}館を追加)`);
+    renderTab(true);
+  } catch (e) { toast('読み込めませんでした。バックアップの形式を確認してください'); }
+}
+
+/* ---------- 本の詳細 ---------- */
+function libsHtml(b){
+  if (!db.libraries.length || !db.appKey) return '<p class="hint" style="margin:0">「設定」でAPIキー、「図書館」で図書館を登録すると、所蔵が表示されます。</p>';
+  const list = avail[b.isbn];
+  if (!list) return loading.has(b.isbn) ? '<div class="spin">確認中…</div>' : '<p class="hint" style="margin:0">確認できませんでした。</p>';
+  return list.map(x => {
+    const s = ST[x.state];
+    return `<div class="row"><span class="sym ${s.cls}">${s.sym}</span>
+      <div class="grow"><div>${esc(x.lib.name)}</div><div class="small t-${s.cls}">${s.label}</div></div>
+      ${x.url ? `<a class="btn small" href="${esc(x.url)}" target="_blank" rel="noopener">${x.direct ? '予約ページ' : '図書館サイト'}</a>` : ''}</div>`;
+  }).join('') + `<button class="btn wide" style="margin-top:8px" data-act="recheck">再確認する</button>`;
+}
+function tagsHtml(b){
+  const sugg = [...new Set(db.books.flatMap(x => x.tags))].filter(t => !b.tags.includes(t));
+  return `<div class="chips wrap">${b.tags.map(t => `<button class="chip on" data-act="tag-del" data-t="${esc(t)}">${esc(t)} ✕</button>`).join('')}</div>
+    <div class="pair"><input id="tagIn" placeholder="新しいタグ(例: 通勤中に読む)" enterkeyhint="done"><button class="btn" data-act="tag-add" style="flex:none">追加</button></div>
+    ${sugg.length ? `<div class="chips wrap" style="margin-top:8px">${sugg.map(t => `<button class="chip" data-act="tag-sugg" data-t="${esc(t)}">+ ${esc(t)}</button>`).join('')}</div>` : ''}`;
+}
+function renderSheet(focusTag){
+  const el = $('#sheet');
+  const b = db.books.find(x => x.isbn === ui.sheet);
+  if (!b) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = `<div class="sheethead"><button class="btn small" data-act="close-sheet">‹ 戻る</button>
+      <button class="btn small ghost t-bad" data-act="del-book">削除</button></div>
+    <div class="card"><div class="book" style="padding:0;border:0">${coverHtml(b.cover)}
+      <div class="grow"><div class="title">${esc(b.title)}</div><div class="meta">${esc(b.authors.join(', '))}</div></div></div>
+      <label class="toggle" style="margin:12px 0 0"><input type="checkbox" data-in="read" ${b.read ? 'checked' : ''}> 読了</label></div>
+    <section class="card"><h2>近くの図書館</h2><div id="sheetLibs">${libsHtml(b)}</div></section>
+    <section class="card"><h2>ジャンル</h2>
+      <select data-in="genre"><option value="">未設定</option>${GENRES.map(g => `<option ${g === b.genre ? 'selected' : ''}>${g}</option>`).join('')}</select></section>
+    <section class="card"><h2>タグ</h2><div id="sheetTags">${tagsHtml(b)}</div></section>
+    <section class="card"><h2>メモ</h2><textarea data-in="memo" placeholder="読みたい理由など">${esc(b.note)}</textarea></section>`;
+  if (focusTag) { const t = $('#tagIn'); if (t) t.focus(); }
+}
+function renderSheetLibs(){
+  const b = db.books.find(x => x.isbn === ui.sheet), el = $('#sheetLibs');
+  if (b && el) el.innerHTML = libsHtml(b);
+}
+function addTag(name){
+  const b = db.books.find(x => x.isbn === ui.sheet); if (!b) return;
+  const t = name.trim().replace(/^#/, '');
+  if (!t || b.tags.includes(t)) return;
+  b.tags.push(t); save();
+  const el = $('#sheetTags'); el.innerHTML = tagsHtml(b); const i = $('#tagIn'); if (i) i.focus();
+}
+
+/* ---------- 描画の入口 ---------- */
+const TITLES = { shelf:'読みたい本', search:'本を探す', libs:'図書館', set:'設定' };
+const VIEWS = { shelf:viewShelf, search:viewSearch, libs:viewLibs, set:viewSet };
+function renderTab(keepScroll){
+  const m = $('#main'), top = m.scrollTop;
+  $('#ttl').textContent = TITLES[ui.tab];
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
+  m.innerHTML = VIEWS[ui.tab]();
+  m.scrollTop = keepScroll ? top : 0;
+  $('#topAct').innerHTML = (ui.tab === 'shelf' && db.books.length && db.libraries.length && db.appKey)
+    ? '<button class="btn small" data-act="refresh">所蔵を更新</button>' : '';
+}
+function shelfUpdate(){ if (ui.tab === 'shelf') renderTab(true); renderSheetLibs(); }
+function showTab(t){
+  ui.tab = t; renderTab(false);
+  if (t === 'shelf') checkIsbns(db.books.map(b => b.isbn), shelfUpdate);
+}
+
+/* ---------- イベント ---------- */
+const ACTIONS = {
+  tab: t => showTab(t.dataset.tab),
+  filter: t => { ui.filter = t.dataset.f || null; renderTab(true); },
+  refresh: () => { avail = {}; checkIsbns(db.books.map(b => b.isbn), shelfUpdate, true); },
+  'add-book': t => {
+    const h = ui.hits.find(x => x.isbn === t.dataset.isbn);
+    if (!h || db.books.some(b => b.isbn === h.isbn)) return;
+    db.books.push({ isbn:h.isbn, title:h.title, authors:h.authors, cover:h.cover, genre:'', tags:[], note:'', read:false, addedAt:Date.now() });
+    save(); updateResults(); toast('追加しました');
+  },
+  'open-book': t => { ui.sheet = t.dataset.isbn; renderSheet(); checkIsbns([ui.sheet], renderSheetLibs); },
+  'close-sheet': () => { ui.sheet = null; renderSheet(); if (ui.tab === 'shelf') renderTab(true); },
+  'del-book': () => {
+    if (!confirm('この本をリストから削除しますか?')) return;
+    db.books = db.books.filter(b => b.isbn !== ui.sheet); save();
+    ui.sheet = null; renderSheet(); renderTab(true);
+  },
+  recheck: () => { delete avail[ui.sheet]; checkIsbns([ui.sheet], renderSheetLibs, true); },
+  'tag-add': () => { const i = $('#tagIn'); if (i) addTag(i.value); },
+  'tag-sugg': t => addTag(t.dataset.t),
+  'tag-del': t => {
+    const b = db.books.find(x => x.isbn === ui.sheet); if (!b) return;
+    b.tags = b.tags.filter(x => x !== t.dataset.t); save(); $('#sheetTags').innerHTML = tagsHtml(b);
+  },
+  'lib-preset': () => findLibs(async () => {
+    let libs = [];
+    for (const c of ['宇都宮市', '鹿沼市']) libs = libs.concat(await calilLibraries({ pref:'栃木県', city:c }));
+    return libs;
+  }, true),
+  'lib-city': () => {
+    if (!ui.city.trim()) { toast('市区町村を入力してください'); return; }
+    findLibs(() => calilLibraries({ pref:ui.pref, city:ui.city.trim(), limit:'30' }), false);
+  },
+  'lib-near': () => {
+    if (!navigator.geolocation) { toast('現在地を使えません'); return; }
+    if (!needKey()) return;
+    navigator.geolocation.getCurrentPosition(
+      p => findLibs(() => calilLibraries({ geocode:p.coords.longitude + ',' + p.coords.latitude, limit:'15' }), false),
+      () => toast('現在地を取得できませんでした'), { timeout:10000 });
+  },
+  'lib-add': t => { const l = ui.found[+t.dataset.i]; if (l && addLibs([l])) { toast('登録しました'); renderTab(true); } },
+  'lib-del': t => { db.libraries.splice(+t.dataset.i, 1); save(); avail = {}; renderTab(true); },
+  'export-share': shareBackup,
+  'export-copy': copyBackup,
+  'import-text': () => { const v = $('#backupText').value.trim(); if (v) importData(v); else toast('貼り付ける内容がありません'); }
+};
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-act]');
+  if (t && ACTIONS[t.dataset.act]) ACTIONS[t.dataset.act](t, e);
+});
+document.addEventListener('input', e => {
+  const t = e.target, k = t.dataset && t.dataset.in;
+  if (!k) return;
+  if (k === 'q') onSearchInput(t.value);
+  else if (k === 'key') { db.appKey = t.value.trim(); save(); avail = {}; }
+  else if (k === 'city') ui.city = t.value;
+  else if (k === 'memo') { const b = db.books.find(x => x.isbn === ui.sheet); if (b) { b.note = t.value; save(); } }
+});
+document.addEventListener('change', e => {
+  const t = e.target, k = t.dataset && t.dataset.in;
+  if (!k) return;
+  const b = db.books.find(x => x.isbn === ui.sheet);
+  if (k === 'onlyHeld') { ui.onlyHeld = t.checked; updateResults(); }
+  else if (k === 'pref') ui.pref = t.value;
+  else if (k === 'genre' && b) { b.genre = t.value; save(); }
+  else if (k === 'read' && b) { b.read = t.checked; save(); }
+  else if (k === 'importFile' && t.files[0]) { t.files[0].text().then(importData); t.value = ''; }
+});
+document.addEventListener('keydown', e => {
+  if (e.target.id === 'tagIn' && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addTag(e.target.value); }
+});
+
+showTab('shelf');
+</script>
+</body>
+</html>
